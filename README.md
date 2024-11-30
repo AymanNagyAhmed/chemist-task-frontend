@@ -1,5 +1,10 @@
-# Backend Service
+## Reposatories
+- Frontend [Reposatory](https://github.com/AymanNagyAhmed/chemist-task-frontend)
 
+- Backend [Repository](https://github.com/AymanNagyAhmed/chemist-task-backend)
+
+
+# Lets install by frontend [Repository](https://github.com/AymanNagyAhmed/chemist-task-frontend)
 ## Prerequisites
 - Node.js (v22 or higher)
 
