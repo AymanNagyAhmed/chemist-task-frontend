@@ -1,15 +1,16 @@
-import { type LoginFormData, type LoginResponse, type LoginErrorResponse } from "@/lib/types/auth.types";
+import { type LoginFormData, type LoginResponse } from "@/lib/types/auth.types"
+import Cookies from 'js-cookie'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-console.log(API_URL)
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"
+
 export class AuthError extends Error {
   constructor(
     message: string,
     public status: number,
-    public statusText: string
+    public path: string
   ) {
-    super(message);
-    this.name = "AuthError";
+    super(message)
+    this.name = "AuthError"
   }
 }
 
@@ -21,28 +22,43 @@ export const loginUser = async (credentials: LoginFormData): Promise<LoginRespon
         "Content-Type": "application/json",
       },
       body: JSON.stringify(credentials),
-    });
-
-    const data = await response.json();
+      credentials: 'include',
+    })
 
     if (!response.ok) {
-      const errorData = data as LoginErrorResponse;
+      const errorData = await response.json()
       throw new AuthError(
-        errorData.message,
-        errorData.statusCode,
-        errorData.error
-      );
+        errorData.message || 'Login failed',
+        response.status,
+        '/api/auth/login'
+      )
     }
 
-    return data as LoginResponse;
+    const data = await response.json()
+    // Set cookies with all necessary data
+    Cookies.set('access_token', data.data.access_token, {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/'
+    })
+
+    // Store full user data in cookies
+    Cookies.set('user_data', JSON.stringify(data.data.user), {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/'
+    })
+
+    return data
   } catch (error) {
+    console.error('Login service error:', error)
     if (error instanceof AuthError) {
-      throw error;
+      throw error
     }
     throw new AuthError(
       "Network error",
       500,
-      "Failed to connect to server"
-    );
+      "/api/auth/login"
+    )
   }
-}; 
+} 
