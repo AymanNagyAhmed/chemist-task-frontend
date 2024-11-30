@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM  node:22.11.0-alpine
 
 WORKDIR /usr/src/app
 
@@ -19,6 +19,6 @@ ENV NODE_OPTIONS="--max_old_space_size=4096"
 # Build with error handling
 RUN npm run build || (echo "Build failed!" && exit 1)
 
-EXPOSE 4000
+EXPOSE 3000
 
 CMD ["npm", "start"] 
