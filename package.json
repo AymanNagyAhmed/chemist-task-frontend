@@ -11,12 +11,15 @@
     "update": "npm update --save && npm update --save-dev"
   },
   "dependencies": {
+    "cookies-next": "^4.3.0",
+    "js-cookie": "^3.0.5",
     "next": "14.2.18",
     "react": "^18",
     "react-dom": "^18",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
