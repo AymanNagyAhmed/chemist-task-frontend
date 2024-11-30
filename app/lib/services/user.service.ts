@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
 export interface UpdateUserProfileData {
   fullName: string;
