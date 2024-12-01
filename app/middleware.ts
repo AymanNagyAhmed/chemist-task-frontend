@@ -17,7 +17,6 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('access_token')?.value
   const isRegistered = request.cookies.get('userRegistered')?.value
   
-  // Get route configuration or use default secure values
   const routeConfig = ROUTE_CONFIG[pathname] || { requiresAuth: true, requiresRegistration: true }
 
   // Handle authentication

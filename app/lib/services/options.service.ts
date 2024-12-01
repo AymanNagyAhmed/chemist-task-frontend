@@ -35,7 +35,7 @@ export const getPreferredLocations = async (): Promise<PreferredLocation[]> => {
     return result.data;
   } catch (error) {
     console.error('Error fetching locations:', error);
-    return [{ id: 1, locationName: 'Remote' }]; // Fallback default
+    return [{ id: 1, locationName: 'Remote' }];
   }
 };
 
@@ -54,6 +54,6 @@ export const getProgrammingSkills = async (): Promise<ProgrammingSkill[]> => {
     return result.data;
   } catch (error) {
     console.error('Error fetching programming skills:', error);
-    return [{ id: 1, name: 'JavaScript' }]; // Fallback default
+    return [{ id: 1, name: 'JavaScript' }];
   }
 }; 

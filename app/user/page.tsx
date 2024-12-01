@@ -28,42 +28,63 @@ export default function UserProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
 
   useEffect(() => {
-    const accessToken = Cookies.get('access_token')
-    const userDataStr = Cookies.get('user_data')
-    const isRegistered = Cookies.get('userRegistered')
+    let isMounted = true
+
+    const fetchProfile = async () => {
+      try {
+        const accessToken = Cookies.get('access_token')
+        const userDataStr = Cookies.get('user_data')
+        const isRegistered = Cookies.get('userRegistered')
         
-    if (!accessToken || !isRegistered) {
-      console.log('Missing required cookies, redirecting to login')
-      router.replace('/')
-      return
+        if (!accessToken || !isRegistered) {
+          router.replace('/')
+          return
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 100))
+
+        if (userDataStr) {
+          try {
+            const userData = JSON.parse(userDataStr)
+            if (isMounted) {
+              setProfile(userData)
+            }
+          } catch (error) {
+            console.error('Failed to parse user data:', error)
+            router.replace('/')
+            return
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      }
     }
 
-    if (userDataStr) {
-      try {
-        const userData = JSON.parse(userDataStr)
-        setProfile(userData)
-      } catch (error) {
-        console.error('Failed to parse user data:', error)
-        router.replace('/')
-      }
-    } else {
-      console.log('No user data found in cookies')
+    fetchProfile()
+
+    return () => {
+      isMounted = false
     }
-    
-    setIsLoading(false)
   }, [router])
 
   const handleLogout = () => {
-    logout() // Use the logout function from auth context
+    logout()
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
+      <div data-testid="loading-container" className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
         <main className="flex-grow flex items-center justify-center">
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading profile...</p>
+            <div 
+              data-testid="loading-spinner"
+              role="status"
+              aria-label="Loading"
+              className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"
+            />
+            <p data-testid="loading-text" className="mt-4 text-gray-600">Loading profile...</p>
           </div>
         </main>
       </div>
@@ -74,7 +95,6 @@ export default function UserProfilePage() {
     return null
   }
 
-  // Format date for display
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',

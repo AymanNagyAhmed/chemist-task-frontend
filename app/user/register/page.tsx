@@ -1,14 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { z } from 'zod'
 import { getPreferredLocations, getProgrammingSkills } from '@/lib/services/options.service'
 import { type ProgrammingSkill, type PreferredLocation } from '@/lib/services/options.service'
 import { updateUserProfile, UserApiError } from '@/lib/services/user.service'
 import Cookies from 'js-cookie'
 
-// We'll create dynamic schemas based on API data
 const createRegistrationSchema = (locations: PreferredLocation[], programmingSkills: ProgrammingSkill[]) => z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   dateOfBirth: z.string().refine((date) => {
@@ -28,9 +27,30 @@ type RegistrationForm = {
   programmingSkills: number[];
 }
 
+const formatDate = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toISOString().split('T')[0]
+}
+
 export default function UserRegistrationPage() {
   const router = useRouter()
-  const pathname = usePathname()
+
+  // Check auth synchronously
+  const accessToken = Cookies.get('access_token')
+  const userDataCookie = Cookies.get('user_data')
+  
+  useEffect(() => {
+    if (!accessToken || !userDataCookie) {
+      setTimeout(() => {
+        router.replace('/')
+      }, 0)
+    }
+  }, [accessToken, userDataCookie, router])
+
+  if (!accessToken || !userDataCookie) {
+    return null
+  }
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<keyof RegistrationForm, string>>>({})
   const [locations, setLocations] = useState<PreferredLocation[]>([])
@@ -43,57 +63,38 @@ export default function UserRegistrationPage() {
     programmingSkills: [],
   })
   const [isLoadingOptions, setIsLoadingOptions] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
-    const accessToken = Cookies.get('access_token')
     const userDataCookie = Cookies.get('user_data')
+    if (!userDataCookie || isInitialized) return
 
-    if (!accessToken || !userDataCookie) {
-      router.push('/')
-      return
-    }
-
-    // Parse user data from cookies
     try {
       const userData = JSON.parse(userDataCookie)
-      
-      // Format the date string to YYYY-MM-DD
-      const formatDate = (dateString: string) => {
-        if (!dateString) return ''
-        const date = new Date(dateString)
-        return date.toISOString().split('T')[0]
-      }
-
-      // Pre-fill form with existing user data
-      setFormData(prev => ({
-        ...prev,
+      setFormData({
         fullName: userData.fullName || '',
-        dateOfBirth: formatDate(userData.dateOfBirth), // Format the date
+        dateOfBirth: formatDate(userData.dateOfBirth),
         resumeSummary: userData.resumeSummary || '',
         preferredLocationId: userData.preferredLocation?.id || 0,
         programmingSkills: userData.programmingSkills?.map((skill: any) => skill.id) || [],
-      }))
+      })
+      setIsInitialized(true)
     } catch (error) {
       console.error('Error parsing user data:', error)
+      router.push('/')
     }
+  }, [isInitialized, router])
 
-    // Fetch options from API
+  useEffect(() => {
     const fetchOptions = async () => {
-      setIsLoadingOptions(true)
       try {
         const [locationsData, skillsData] = await Promise.all([
           getPreferredLocations(),
           getProgrammingSkills()
         ])
         
-        // Only update if we got valid data
         if (locationsData?.length > 0) {
           setLocations(locationsData)
-          // Only set default location if not already set from user data
-          setFormData(prev => ({
-            ...prev,
-            preferredLocationId: prev.preferredLocationId || locationsData[0].id
-          }))
         }
         
         if (skillsData?.length > 0) {
@@ -107,7 +108,7 @@ export default function UserRegistrationPage() {
     }
 
     fetchOptions()
-  }, [router])
+  }, [])
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -172,25 +173,15 @@ export default function UserRegistrationPage() {
           path: '/'
         })
 
-        // Try multiple navigation approaches
-        console.log('Attempting navigation to /user')
-        
-        // Approach 1: Force a hard navigation
-        window.location.href = '/user'
-        
-        // Approach 2: If the above doesn't trigger immediately, try router.push
-        // setTimeout(() => {
-        //   router.push('/user')
-        // }, 100)
-
-        return // Important: prevent further execution
+        window.location.href = '/user';
+        return ;
       } else {
         setErrors({
           fullName: response.message || 'Registration failed. Please try again.'
         })
       }
     } catch (err) {
-      console.error('Registration error:', err)
+      // console.error('Registration error:', err)
       if (err instanceof z.ZodError) {
         const fieldErrors: Partial<Record<keyof RegistrationForm, string>> = {}
         err.errors.forEach((error) => {
@@ -200,7 +191,7 @@ export default function UserRegistrationPage() {
         setErrors(fieldErrors)
       } else if (err instanceof UserApiError) {
         if (err.status === 401) {
-          window.location.href = '/' // Use window.location for auth failures
+          window.location.href = '/'
           return
         }
         setErrors({
@@ -239,7 +230,7 @@ export default function UserRegistrationPage() {
               <p className="text-blue-100 mt-2">Please provide your information to continue</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <form onSubmit={handleSubmit} className="p-6 space-y-6" role="form">
               {/* Full Name */}
               <div className="space-y-1.5">
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">

@@ -45,7 +45,6 @@ export const LoginForm = () => {
       const validatedData = loginSchema.parse(formData)
       const response = await loginUser(validatedData)
       
-      // Call login from auth context
       login(response.data.access_token, response.data.user)
 
       // Check if user has completed registration
@@ -74,7 +73,7 @@ export const LoginForm = () => {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+    <form onSubmit={handleSubmit} className="mt-8 space-y-6" role="form">
       <div className="space-y-5">
         <FormField
           label="Email address"

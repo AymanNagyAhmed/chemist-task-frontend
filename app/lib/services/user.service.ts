@@ -73,7 +73,7 @@ export const updateUserProfile = async (userId: number, data: UpdateUserProfileD
     }
 
     if (responseData.success) {
-      // Update the user data in cookies with the full response data
+
       Cookies.set('user_data', JSON.stringify(responseData.data), {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
