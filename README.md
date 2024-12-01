@@ -4,7 +4,6 @@
 - Backend [Repository](https://github.com/AymanNagyAhmed/chemist-task-backend)
 
 
-# Lets install by frontend [Repository](https://github.com/AymanNagyAhmed/chemist-task-frontend)
 ## Prerequisites
 - Node.js (v22.11.0)
 - jest
@@ -14,5 +13,6 @@
 1. Clone the repository
 2. copy .env.dev to .env
 3. npm install
-4. npm run start:dev
-5. visit "localhost:3000"
+4. npm test
+5. npm run start:dev
+6. visit "localhost:3000"
