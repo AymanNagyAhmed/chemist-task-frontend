@@ -1,14 +1,16 @@
-## Reposatories
-- Frontend [Reposatory](https://github.com/AymanNagyAhmed/chemist-task-frontend)
+## Repositories
+- [Frontend Repository](https://github.com/AymanNagyAhmed/chemist-task-frontend)
+- [Backend Repository](https://github.com/AymanNagyAhmed/chemist-task-backend)
+- [Install using docker](https://github.com/AymanNagyAhmed/chemist-task)
+- [Postman Collection](https://github.com/AymanNagyAhmed/chemist-task-backend/blob/main/Chemist-Warehouses-task.postman_collection.json)
 
-- Backend [Repository](https://github.com/AymanNagyAhmed/chemist-task-backend)
 
 
 ## Prerequisites
 - Node.js (v22.11.0)
 - jest
 
-## Frontend Installation
+## Regular Installation [or Install using docker](https://github.com/AymanNagyAhmed/chemist-task)
 ### Local Development Setup
 1. Clone the repository
 2. copy .env.dev to .env
