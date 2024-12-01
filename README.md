@@ -6,13 +6,11 @@
 
 # Lets install by frontend [Repository](https://github.com/AymanNagyAhmed/chemist-task-frontend)
 ## Prerequisites
-- Node.js (v22 or higher)
+- Node.js (v22.11.0)
+- jest
 
-
-## Installation
-
+## Frontend Installation
 ### Local Development Setup
-
 1. Clone the repository
 2. copy .env.dev to .env
 3. npm install
