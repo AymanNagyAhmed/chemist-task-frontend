@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { z } from 'zod'
 import { getPreferredLocations, getProgrammingSkills } from '@/lib/services/options.service'
@@ -19,12 +19,29 @@ const createRegistrationSchema = (locations: PreferredLocation[], programmingSki
   programmingSkills: z.array(z.number()).min(1, 'Select at least one skill'),
 })
 
+interface UserData {
+  id: number;
+  email: string;
+  fullName: string | null;
+  dateOfBirth: string | null;
+  preferredLocation: {
+    id: number;
+    locationName: string;
+  } | null;
+  resumeSummary: string | null;
+  programmingSkills: Array<{
+    id: number;
+    name: string;
+  }>;
+}
+
 type RegistrationForm = {
   fullName: string;
   dateOfBirth: string;
   resumeSummary: string;
   preferredLocationId: number;
   programmingSkills: number[];
+  profileImage?: File;
 }
 
 const formatDate = (dateString: string) => {
@@ -35,57 +52,59 @@ const formatDate = (dateString: string) => {
 
 export default function UserRegistrationPage() {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
+  
+  // Get initial form data from cookies
+  const initialFormData = (() => {
+    try {
+      const userDataCookie = Cookies.get('user_data')
+      if (userDataCookie) {
+        const userData = JSON.parse(userDataCookie)
+        const locationId = userData.preferredLocation?.id
+        return {
+          fullName: userData.fullName ?? '',
+          dateOfBirth: userData.dateOfBirth ? formatDate(userData.dateOfBirth) : '',
+          resumeSummary: userData.resumeSummary ?? '',
+          preferredLocationId: locationId ? Number(locationId) : 0,
+          programmingSkills: Array.isArray(userData.programmingSkills) 
+            ? userData.programmingSkills.map((skill: any) => Number(skill.id))
+            : [],
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing initial user data:', error)
+    }
+    // Return default values if no cookie or parsing fails
+    return {
+      fullName: '',
+      dateOfBirth: '',
+      resumeSummary: '',
+      preferredLocationId: 0,
+      programmingSkills: [],
+    }
+  })()
 
+  const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<Partial<Record<keyof RegistrationForm, string>>>({})
+  const [locations, setLocations] = useState<PreferredLocation[]>([])
+  const [programmingSkills, setProgrammingSkills] = useState<ProgrammingSkill[]>([])
+  const [formData, setFormData] = useState<RegistrationForm>(initialFormData)
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true)
+  
   // Check auth synchronously
   const accessToken = Cookies.get('access_token')
   const userDataCookie = Cookies.get('user_data')
   
   useEffect(() => {
+    setMounted(true)
     if (!accessToken || !userDataCookie) {
-      setTimeout(() => {
-        router.replace('/')
-      }, 0)
+      router.replace('/')
     }
   }, [accessToken, userDataCookie, router])
 
-  if (!accessToken || !userDataCookie) {
-    return null
-  }
-  const [isLoading, setIsLoading] = useState(false)
-  const [errors, setErrors] = useState<Partial<Record<keyof RegistrationForm, string>>>({})
-  const [locations, setLocations] = useState<PreferredLocation[]>([])
-  const [programmingSkills, setProgrammingSkills] = useState<ProgrammingSkill[]>([])
-  const [formData, setFormData] = useState<RegistrationForm>({
-    fullName: '',
-    dateOfBirth: '',
-    resumeSummary: '',
-    preferredLocationId: 0,
-    programmingSkills: [],
-  })
-  const [isLoadingOptions, setIsLoadingOptions] = useState(true)
-  const [isInitialized, setIsInitialized] = useState(false)
-
   useEffect(() => {
-    const userDataCookie = Cookies.get('user_data')
-    if (!userDataCookie || isInitialized) return
+    if (!mounted || !accessToken || !userDataCookie) return;
 
-    try {
-      const userData = JSON.parse(userDataCookie)
-      setFormData({
-        fullName: userData.fullName || '',
-        dateOfBirth: formatDate(userData.dateOfBirth),
-        resumeSummary: userData.resumeSummary || '',
-        preferredLocationId: userData.preferredLocation?.id || 0,
-        programmingSkills: userData.programmingSkills?.map((skill: any) => skill.id) || [],
-      })
-      setIsInitialized(true)
-    } catch (error) {
-      console.error('Error parsing user data:', error)
-      router.push('/')
-    }
-  }, [isInitialized, router])
-
-  useEffect(() => {
     const fetchOptions = async () => {
       try {
         const [locationsData, skillsData] = await Promise.all([
@@ -108,7 +127,25 @@ export default function UserRegistrationPage() {
     }
 
     fetchOptions()
-  }, [])
+  }, [mounted, accessToken, userDataCookie])
+
+  // Return null on initial server render and when not authenticated
+  if (!mounted || !accessToken || !userDataCookie) {
+    return null
+  }
+
+  if (isLoadingOptions) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
+        <main className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading options...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -116,7 +153,7 @@ export default function UserRegistrationPage() {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'preferredLocationId' ? Number(value) : value
+      [name]: name === 'preferredLocationId' ? (value ? Number(value) : 0) : value
     }))
     if (errors[name as keyof RegistrationForm]) {
       setErrors(prev => ({
@@ -141,6 +178,39 @@ export default function UserRegistrationPage() {
     }
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setErrors(prev => ({
+          ...prev,
+          profileImage: 'File size must be less than 5MB'
+        }));
+        return;
+      }
+      
+      if (!file.type.startsWith('image/')) {
+        setErrors(prev => ({
+          ...prev,
+          profileImage: 'Please upload an image file'
+        }));
+        return;
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        profileImage: file
+      }));
+      
+      if (errors.profileImage) {
+        setErrors(prev => ({
+          ...prev,
+          profileImage: ''
+        }));
+      }
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
@@ -154,8 +224,15 @@ export default function UserRegistrationPage() {
 
       const user = JSON.parse(userData)
       
+      // Create request data with proper type conversion
+      const requestData = {
+        ...formData,
+        preferredLocationId: Number(formData.preferredLocationId),
+        programmingSkills: formData.programmingSkills.map(id => Number(id))
+      }
+      
       const registrationSchema = createRegistrationSchema(locations, programmingSkills)
-      const validatedData = registrationSchema.parse(formData)
+      const validatedData = registrationSchema.parse(requestData)
       
       const response = await updateUserProfile(user.id, validatedData)
       
@@ -174,7 +251,7 @@ export default function UserRegistrationPage() {
         })
 
         window.location.href = '/user';
-        return ;
+        return;
       } else {
         setErrors({
           fullName: response.message || 'Registration failed. Please try again.'
@@ -205,19 +282,6 @@ export default function UserRegistrationPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  if (isLoadingOptions) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
-        <main className="flex-grow flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading options...</p>
-          </div>
-        </main>
-      </div>
-    )
   }
 
   return (
@@ -302,7 +366,7 @@ export default function UserRegistrationPage() {
                   id="preferredLocationId"
                   name="preferredLocationId"
                   required
-                  value={formData.preferredLocationId}
+                  value={formData.preferredLocationId || ''}
                   onChange={handleInputChange}
                   className="block w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 
                     focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-opacity-20"
@@ -340,6 +404,34 @@ export default function UserRegistrationPage() {
                 </div>
                 {errors.programmingSkills && (
                   <p className="text-sm text-red-500">{errors.programmingSkills}</p>
+                )}
+              </div>
+
+              {/* Profile Image Upload */}
+              <div className="space-y-1.5">
+                <label htmlFor="profileImage" className="block text-sm font-medium text-gray-700">
+                  Profile Image
+                </label>
+                <input
+                  id="profileImage"
+                  name="profileImage"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100"
+                />
+                {errors.profileImage && (
+                  <p className="text-sm text-red-500">{errors.profileImage}</p>
+                )}
+                {formData.profileImage && (
+                  <p className="text-sm text-gray-500">
+                    Selected file: {formData.profileImage.name}
+                  </p>
                 )}
               </div>
 

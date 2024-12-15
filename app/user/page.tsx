@@ -19,7 +19,13 @@ interface UserProfile {
     id: number
     name: string
   }>
+  profileImage?: string
 }
+
+const getFullImageUrl = (profileImage: string | undefined | null): string | undefined => {
+  if (!profileImage) return undefined;
+  return `${process.env.NEXT_PUBLIC_URL}/${profileImage}`;
+};
 
 export default function UserProfilePage() {
   const router = useRouter()
@@ -73,6 +79,87 @@ export default function UserProfilePage() {
     logout()
   }
 
+  const handleProfileImageChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+
+    // Show immediate preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfile(prevProfile => {
+        if (prevProfile) {
+          return {
+            ...prevProfile,
+            profileImage: reader.result as string
+          }
+        }
+        return null;
+      });
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to server
+    try {
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      const accessToken = Cookies.get('access_token');
+      if (!accessToken || !profile) return;
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: formData,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile image');
+      }
+
+      const updatedProfile = await response.json();
+      
+      if (updatedProfile.success) {
+        // Update cookies and state with server response
+        Cookies.set('user_data', JSON.stringify(updatedProfile.data), {
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          path: '/'
+        });
+        
+        setProfile(updatedProfile.data);
+      }
+    } catch (error) {
+      console.error('Error updating profile image:', error);
+      alert('Failed to update profile image. Please try again.');
+      
+      // Revert to previous profile state if upload fails
+      const userDataStr = Cookies.get('user_data');
+      if (userDataStr) {
+        try {
+          const userData = JSON.parse(userDataStr);
+          setProfile(userData);
+        } catch (e) {
+          console.error('Error reverting profile:', e);
+        }
+      }
+    }
+  };
+
   if (isLoading) {
     return (
       <div data-testid="loading-container" className="min-h-screen flex flex-col bg-gradient-to-b from-gray-50 to-gray-100">
@@ -113,11 +200,37 @@ export default function UserProfilePage() {
             <div className="bg-blue-600 px-6 py-8">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="h-20 w-20 rounded-full bg-white/10 flex items-center justify-center">
-                    <span className="text-3xl text-white">
-                      {profile.fullName.charAt(0)}
-                    </span>
-                  </div>
+                  <label 
+                    htmlFor="profileImageUpload"
+                    className="relative h-20 w-20 rounded-full bg-white/10 flex items-center justify-center cursor-pointer
+                      hover:bg-white/20 transition-all group"
+                  >
+                    {profile.profileImage ? (
+                      <img 
+                        src={getFullImageUrl(profile.profileImage) || ''}
+                        alt={profile.fullName?.charAt(0)?? 'test'}
+                        className="h-20 w-20 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-3xl text-white">
+                        {profile.fullName?.charAt(0) ?? '----'}
+                      </span>
+                    )}
+                    
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-black/30 rounded-full opacity-0 group-hover:opacity-100 
+                      flex items-center justify-center transition-opacity">
+                      <span className="text-white text-xs">Change Photo</span>
+                    </div>
+                    
+                    <input
+                      id="profileImageUpload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleProfileImageChange}
+                    />
+                  </label>
                   <div>
                     <h1 className="text-2xl font-bold text-white">{profile.fullName}</h1>
                     <p className="text-blue-100">{profile.email}</p>

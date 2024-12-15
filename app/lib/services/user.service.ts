@@ -8,6 +8,7 @@ export interface UpdateUserProfileData {
   resumeSummary: string;
   preferredLocationId: number;
   programmingSkills: number[];
+  profileImage?: File;
 }
 
 export class UserApiError extends Error {
@@ -52,13 +53,24 @@ export const updateUserProfile = async (userId: number, data: UpdateUserProfileD
   }
 
   try {
+    const formData = new FormData()
+    
+    formData.append('fullName', data.fullName)
+    formData.append('dateOfBirth', data.dateOfBirth)
+    formData.append('resumeSummary', data.resumeSummary)
+    formData.append('preferredLocationId', data.preferredLocationId.toString())
+    formData.append('programmingSkills', JSON.stringify(data.programmingSkills))
+    
+    if (data.profileImage) {
+      formData.append('profileImage', data.profileImage)
+    }
+
     const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'PATCH',
       headers: {
-        'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`
       },
-      body: JSON.stringify(data),
+      body: formData,
       credentials: 'include',
     })
 
@@ -73,7 +85,6 @@ export const updateUserProfile = async (userId: number, data: UpdateUserProfileD
     }
 
     if (responseData.success) {
-
       Cookies.set('user_data', JSON.stringify(responseData.data), {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
